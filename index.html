@@ -254,7 +254,12 @@ document.getElementById("loginBtn").onclick=async()=>{
   msg.className="status";
   if(!email){msg.textContent="Ingresa un correo.";msg.classList.add("error");return;}
   const {error}=await sb.auth.signInWithOtp({email,options:{shouldCreateUser:false,emailRedirectTo:REDIRECT_URL}});
-  if(error){msg.textContent="No se pudo enviar el acceso. Verifica que el correo esté autorizado.";msg.classList.add("error");}
+  if(error){
+    console.error("Error Supabase:", error);
+
+    msg.textContent = "Error: " + (error.message || "No se pudo enviar el enlace.");
+    msg.classList.add("error");
+}
   else{msg.textContent="Enlace enviado. Revisa tu correo.";msg.classList.add("success");}
 };
 document.getElementById("logoutBtn").onclick=()=>sb.auth.signOut();
