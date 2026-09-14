@@ -1,0 +1,274 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Resultados de campaña</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    :root{
+      --blue:#12395a; --blue2:#1f5f95; --bg:#f4f7fb; --card:#fff; --line:#dfe6ee;
+      --text:#14243a; --muted:#617189; --danger:#c43b3b; --ok:#1f8b57;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;font-family:Segoe UI,Arial,sans-serif;background:var(--bg);color:var(--text)}
+    .hero{background:linear-gradient(90deg,#12395a,#1b527c);color:#fff;padding:18px 36px 55px}
+    .hero .mini{font-size:15px;opacity:.85;margin-bottom:6px}
+    .hero h1{margin:0;font-size:28px}
+    .hero p{margin:6px 0 0;font-size:15px;opacity:.85}
+    .wrap{max-width:1800px;margin:-32px auto 20px;padding:0 15px}
+    .card{background:#fff;border:1px solid var(--line);border-radius:20px;box-shadow:0 10px 35px rgba(23,51,80,.08)}
+    .login{max-width:500px;margin:70px auto;padding:28px}
+    .login h2{margin-top:0;font-size:32px}
+    .login input{width:100%;padding:14px;border:1px solid var(--line);border-radius:12px;font-size:18px}
+    .btn{border:0;border-radius:12px;padding:13px 18px;font-weight:700;cursor:pointer}
+    .btn.primary{background:#e31720;color:#fff;width:100%;font-size:18px;margin-top:12px}
+    .btn.ghost{background:#fff;border:1px solid var(--line)}
+    .status{margin-top:12px}.error{color:#c7352c}.success{color:#16834f}
+    .hidden{display:none!important}
+    .nav{padding:10px 18px;display:flex;gap:12px;align-items:center;justify-content:space-between}
+    .tabs{display:flex;gap:10px}
+    .tab{background:#eef3f8;color:#284661;border:0;border-radius:12px;padding:10px 22px;font-weight:700;font-size:14px;cursor:pointer}
+    .tab.active{background:#2169a4;color:#fff}
+    .user{font-size:13px;color:var(--muted);margin-right:10px}
+    .filters{margin-top:12px;padding:14px 18px;display:flex;gap:12px}
+    .filters input,.filters select{padding:10px 14px;border:1px solid var(--line);border-radius:12px;font-size:14px;background:#fff}
+    .filters input{flex:1}
+    .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:12px 0}
+    .kpi{padding:14px 20px}.kpi .label{font-size:12px;color:var(--muted)}.kpi .value{font-size:27px;font-weight:800;margin-top:4px}
+    .table-card{overflow:hidden}
+    .table-wrap{overflow:auto}
+    table{width:100%;border-collapse:collapse;font-size:12px;white-space:nowrap}
+    th,td{padding:8px 8px;border-bottom:1px solid var(--line);text-align:left}
+    th{position:sticky;top:0;background:#f7f9fc;z-index:2;color:#4a5d73;font-size:10px;text-transform:uppercase}
+
+    /* Agencia: ancho controlado y texto en varias líneas */
+    th:nth-child(4),
+    td:nth-child(4){
+      width:260px;
+      min-width:260px;
+      max-width:260px;
+      white-space:normal;
+      line-height:1.25;
+    }
+
+    /* Columnas congeladas: Posición, Cargo y Responsable */
+    th:nth-child(1), td:nth-child(1){
+      position:sticky;
+      left:0;
+      background:#fff;
+      z-index:3;
+      min-width:52px;
+      width:52px;
+    }
+    th:nth-child(2), td:nth-child(2){
+      position:sticky;
+      left:52px;
+      background:#fff;
+      z-index:3;
+      min-width:72px;
+      width:72px;
+    }
+    th:nth-child(3), td:nth-child(3){
+      position:sticky;
+      left:124px;
+      background:#fff;
+      z-index:3;
+      min-width:260px;
+      width:260px;
+      max-width:260px;
+      white-space:normal;
+      line-height:1.25;
+    }
+    th:nth-child(1),
+    th:nth-child(2),
+    th:nth-child(3){
+      background:#f7f9fc;
+      z-index:5;
+    }
+    td.num,th.num{text-align:right}
+    .pill{font-weight:800}.pill.ok{color:var(--ok)}.pill.no{color:var(--danger)}
+    .loading{padding:30px;text-align:center;color:var(--muted)}
+    .foot{font-size:12px;color:var(--muted);padding:10px 4px}
+    @media(max-width:900px){
+      .kpis{grid-template-columns:repeat(2,1fr)}
+      .filters{flex-direction:column}
+      .nav{align-items:flex-start;gap:12px;flex-direction:column}
+    }
+  </style>
+</head>
+<body>
+
+<section id="loginView" class="card login">
+  <h2>Acceso a Campaña Santander</h2>
+  <p>Ingresa con el correo autorizado. Recibirás un enlace de acceso en tu correo.</p>
+  <input id="email" type="email" placeholder="correo@buro.com.pe">
+  <button id="loginBtn" class="btn primary">Enviar enlace de acceso</button>
+  <div id="loginMsg" class="status"></div>
+  <p style="color:#6d7786">Solo usuarios previamente creados en Supabase Auth podrán ingresar.</p>
+</section>
+
+<div id="appView" class="hidden">
+  <section class="hero">
+    <div class="mini">BURO · Santander</div>
+    <h1>Resultados de campaña</h1>
+    <p>Consulta de las dos hojas del reporte: Resultados y Ranking</p>
+  </section>
+
+  <div class="wrap">
+    <div class="card nav">
+      <div class="tabs">
+        <button class="tab active" data-sheet="Bono">Resultados</button>
+        <button class="tab" data-sheet="Rankin">Ranking</button>
+      </div>
+      <div>
+        <span id="userEmail" class="user"></span>
+        <button id="logoutBtn" class="btn ghost">Cerrar sesión</button>
+      </div>
+    </div>
+
+    <div class="card filters">
+      <input id="search" type="search" placeholder="Buscar responsable o agencia...">
+      <select id="cargoFilter"><option value="">Todos los cargos</option></select>
+    </div>
+
+    <div class="kpis">
+      <div class="card kpi"><div class="label">Registros mostrados</div><div id="kpiRows" class="value">-</div></div>
+      <div class="card kpi"><div class="label">Cumplen activación</div><div id="kpiAct" class="value">-</div></div>
+      <div class="card kpi"><div class="label">Cumplen meta</div><div id="kpiMeta" class="value">-</div></div>
+      <div class="card kpi"><div class="label">Promedio cumplimiento</div><div id="kpiPct" class="value">-</div></div>
+    </div>
+
+    <div class="card table-card">
+      <div id="loading" class="loading">Cargando información...</div>
+      <div id="tableWrap" class="table-wrap hidden">
+        <table>
+          <thead><tr id="theadRow"></tr></thead>
+          <tbody id="tbody"></tbody>
+        </table>
+      </div>
+    </div>
+    <div id="foot" class="foot"></div>
+  </div>
+</div>
+
+<script>
+const SUPABASE_URL = "https://lqnioeqwpqadfdsjxene.supabase.co";
+const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_0B-EDDIJgvUspabY4ZfsKg_tX-YQ5Dy";
+const REDIRECT_URL = "https://vincentgs78.github.io/campana-santander/";
+
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
+
+const columns = [
+  ["posicion","Pos."],["cargo","Cargo"],["responsable","Responsable"],["agencias","Agencias"],
+  ["total_activos","Total activos"],["activos_con_produccion","Con producción"],
+  ["activos_sin_produccion","Sin producción"],["pct_activacion","% Activación"],
+  ["candado_80","Condición 80%"],["op_agosto","Op. Agosto"],["meta_op","Meta Op."],
+  ["op_produccion_sep","Prod. Sep."],["op_tarjetas_sep","Tarjetas Sep."],
+  ["op_setiembre","Op. Setiembre"],["pct_cumplimiento","% Cumpl."],
+  ["op_faltantes","Faltantes"],["cumple_meta_op","Cumple Meta"]
+];
+
+let currentSheet = "Bono";
+let campaignId = null;
+let allRows = [];
+
+const esc = v => String(v ?? "").replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+const num = v => Number(v || 0);
+const pct = v => (v===null || v===undefined || v==="") ? "—" : `${Number(v).toFixed(Number(v)%1?2:0)}%`;
+const isCumple = v => String(v||"").trim().toUpperCase() === "CUMPLE";
+const pill = v => `<span class="pill ${isCumple(v)?'ok':'no'}">${esc(v ?? "")}</span>`;
+
+function renderHeader(){
+  document.getElementById("theadRow").innerHTML = columns.map(([_,l])=>`<th>${esc(l)}</th>`).join("");
+}
+function renderRows(rows){
+  document.getElementById("tbody").innerHTML = rows.map(r=>`
+    <tr>${columns.map(([k])=>{
+      if(k==="pct_activacion" || k==="pct_cumplimiento") return `<td class="num">${pct(r[k])}</td>`;
+      if(k==="candado_80" || k==="cumple_meta_op") return `<td>${pill(r[k])}</td>`;
+      const cls=["posicion","total_activos","activos_con_produccion","activos_sin_produccion","op_agosto","meta_op","op_produccion_sep","op_tarjetas_sep","op_setiembre","op_faltantes"].includes(k)?"num":"";
+      return `<td class="${cls}">${esc(r[k] ?? "")}</td>`;
+    }).join("")}</tr>`).join("");
+  document.getElementById("foot").textContent = `${rows.length} registro(s) mostrados`;
+}
+function renderKpis(rows){
+  document.getElementById("kpiRows").textContent = rows.length;
+  document.getElementById("kpiAct").textContent = rows.filter(r=>isCumple(r.candado_80)).length;
+  document.getElementById("kpiMeta").textContent = rows.filter(r=>isCumple(r.cumple_meta_op)).length;
+  const vals=rows.map(r=>Number(r.pct_cumplimiento)).filter(Number.isFinite);
+  document.getElementById("kpiPct").textContent = vals.length ? `${(vals.reduce((a,b)=>a+b,0)/vals.length).toFixed(2)}%` : "0%";
+}
+function populateCargo(){
+  const sel=document.getElementById("cargoFilter");
+  const current=sel.value;
+  const cargos=[...new Set(allRows.map(r=>r.cargo).filter(Boolean))].sort();
+  sel.innerHTML='<option value="">Todos los cargos</option>'+cargos.map(c=>`<option value="${esc(c)}">${esc(c)}</option>`).join("");
+  sel.value=current;
+}
+function applyFilters(){
+  const q=document.getElementById("search").value.trim().toLowerCase();
+  const cargo=document.getElementById("cargoFilter").value;
+  const rows=allRows.filter(r=>{
+    const matchQ=!q || [r.responsable,r.agencias,r.cargo].some(v=>String(v??"").toLowerCase().includes(q));
+    const matchC=!cargo || r.cargo===cargo;
+    return matchQ && matchC;
+  });
+  renderRows(rows); renderKpis(rows);
+}
+async function loadCampaign(){
+  const {data,error}=await sb.from("campaigns").select("id").eq("is_active",true).order("created_at",{ascending:false}).limit(1).single();
+  if(error) throw error;
+  campaignId=data.id;
+}
+async function loadSheet(sheet){
+  currentSheet=sheet;
+  document.getElementById("loading").classList.remove("hidden");
+  document.getElementById("tableWrap").classList.add("hidden");
+  if(!campaignId) await loadCampaign();
+
+  const {data,error}=await sb.from("campaign_results").select("*")
+    .eq("campaign_id",campaignId).eq("source_sheet",sheet)
+    .order("posicion",{ascending:true,nullsFirst:false});
+  if(error) throw error;
+
+  allRows=data||[];
+  renderHeader(); populateCargo(); applyFilters();
+  document.getElementById("loading").classList.add("hidden");
+  document.getElementById("tableWrap").classList.remove("hidden");
+}
+async function showApp(session){
+  document.getElementById("loginView").classList.add("hidden");
+  document.getElementById("appView").classList.remove("hidden");
+  document.getElementById("userEmail").textContent=session.user.email||"";
+  try{await loadSheet(currentSheet)}
+  catch(e){document.getElementById("loading").textContent="Error al cargar: "+(e.message||e)}
+}
+function showLogin(){
+  document.getElementById("appView").classList.add("hidden");
+  document.getElementById("loginView").classList.remove("hidden");
+}
+document.getElementById("loginBtn").onclick=async()=>{
+  const email=document.getElementById("email").value.trim();
+  const msg=document.getElementById("loginMsg");
+  msg.className="status";
+  if(!email){msg.textContent="Ingresa un correo.";msg.classList.add("error");return;}
+  const {error}=await sb.auth.signInWithOtp({email,options:{shouldCreateUser:false,emailRedirectTo:REDIRECT_URL}});
+  if(error){msg.textContent="No se pudo enviar el acceso. Verifica que el correo esté autorizado.";msg.classList.add("error");}
+  else{msg.textContent="Enlace enviado. Revisa tu correo.";msg.classList.add("success");}
+};
+document.getElementById("logoutBtn").onclick=()=>sb.auth.signOut();
+document.getElementById("search").addEventListener("input",applyFilters);
+document.getElementById("cargoFilter").addEventListener("change",applyFilters);
+document.querySelectorAll(".tab").forEach(btn=>btn.addEventListener("click",async()=>{
+  document.querySelectorAll(".tab").forEach(b=>b.classList.remove("active"));
+  btn.classList.add("active");
+  document.getElementById("search").value="";
+  document.getElementById("cargoFilter").value="";
+  await loadSheet(btn.dataset.sheet);
+}));
+sb.auth.onAuthStateChange((_e,session)=>session?showApp(session):showLogin());
+(async()=>{const {data:{session}}=await sb.auth.getSession();session?showApp(session):showLogin();})();
+</script>
+</body>
+</html>
